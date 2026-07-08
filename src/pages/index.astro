@@ -1,0 +1,24 @@
+---
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import BmiCalculator from "../components/BmiCalculator";
+import "../styles/global.css";
+---
+
+<!DOCTYPE html>
+<html lang="th">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="generator" content={Astro.generator} />
+		<title>โปรแกรมคำนวณ BMI</title>
+	</head>
+	<body class="font-sans bg-[#eef2f3] flex flex-col justify-between min-h-screen m-0">
+		<Header />
+		<main class="flex-grow flex items-center justify-center">
+			<BmiCalculator client:load />
+		</main>
+		<Footer />
+	</body>
+</html>
