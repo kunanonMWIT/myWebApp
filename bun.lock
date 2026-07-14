@@ -6,6 +6,7 @@
       "dependencies": {
         "@astrojs/check": "^0.9.9",
         "@astrojs/solid-js": "^7.0.1",
+        "@rnwonder/solid-date-picker": "^1.5.0",
         "@tailwindcss/vite": "^4.3.2",
         "@types/d3": "^7.4.3",
         "astro": "^7.0.6",
@@ -259,6 +260,10 @@
     "@oslojs/encoding": ["@oslojs/encoding@1.1.0", "", {}, "sha512-70wQhgYmndg4GCPxPPxPGevRKqTIJ2Nh4OkiMWmDAVYsTQ+Ta7Sq+rPevXyXGdzr30/qZBnyOalCszoMxlyldQ=="],
 
     "@oxc-project/types": ["@oxc-project/types@0.138.0", "", {}, "sha512-1a7ZKmrRTCoN1XMZ4L0PyyqrMnrNlLyPuOkdSX2MZg7IiIGRUyurNhAm73ptDOraoBcIordsIGKNPKUzy3ZmfA=="],
+
+    "@rnwonder/simple-datejs": ["@rnwonder/simple-datejs@1.1.2", "", {}, "sha512-9FZfZ3cEm6/ds6d1NE5yWRxBu/w5RUenspvQv9kmkLDWaHF6YPqcCX1dToC45vsyfoqgNmQSJt/bfufv6UBYwA=="],
+
+    "@rnwonder/solid-date-picker": ["@rnwonder/solid-date-picker@1.5.0", "", { "dependencies": { "@rnwonder/simple-datejs": "^1.1.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-b2zztJAzyi86oiQRNSgP0IsQgwgAPnG+ZmcM5nsj22OEeHK7HPZ5KlhgClZod/UhfAyNIETQesKTA6q5rblN+g=="],
 
     "@rolldown/binding-android-arm64": ["@rolldown/binding-android-arm64@1.1.4", "", { "os": "android", "cpu": "arm64" }, "sha512-EZLpf/8y7GXkkra90ML47kzik/GMP3EMcE9bPyHmRfxLC6z9+aW5A8poCsoxjrT5GfEcNAAvWwUHjvP1pUQkfw=="],
 

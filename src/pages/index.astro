@@ -13,13 +13,13 @@ import "../styles/global.css";
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="generator" content={Astro.generator} />
-		<title>โปรแกรมคำนวณ BMI</title>
+		<title>BMI Calculator</title>
 	</head>
 	<body class="font-sans bg-kala-black flex flex-col justify-between min-h-screen m-0">
 		<Header />
 		<Marquee client:only="solid-js" />
 		<main class="flex-grow flex items-center justify-center">
-			<BmiCalculator client:load />
+			<BmiCalculator client:only="solid-js" />
 		</main>
 		<Footer />
 	</body>
