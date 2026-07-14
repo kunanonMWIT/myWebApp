@@ -1,4 +1,5 @@
-import { createSignal, Show, For } from "solid-js";
+import { createSignal, Show, For, onMount } from "solid-js";
+import BMITable from "./BMITable";
 import { User, Scale, Ruler, Calendar, Trash2 } from "lucide-solid";
 import DatePicker from "@rnwonder/solid-date-picker";
 import "@rnwonder/solid-date-picker/dist/style.css";
@@ -17,6 +18,16 @@ export default function BmiCalculator() {
   const [borderClass, setBorderClass] = createSignal<string>("border-space-convoy");
   const [showResult, setShowResult] = createSignal<boolean>(false);
   const [isSplit, setIsSplit] = createSignal<boolean>(false);
+  const [history, setHistory] = createSignal<Array<[string, string, number, number]>>([]);
+
+  onMount(() => {
+    try {
+      const data = JSON.parse(localStorage.getItem("bmi_history") || "[]");
+      setHistory(data);
+    } catch (e) {
+      console.error("Failed to load history from localStorage:", e);
+    }
+  });
 
   const calculateBmi = () => {
     const w = parseFloat(weight());
@@ -72,18 +83,20 @@ export default function BmiCalculator() {
   };
 
   const saveBmi = () => {
-    const computedBmi = bmi();
-    if (computedBmi === null) return;
+    const w = parseFloat(weight());
+    const h = parseFloat(height());
+    if (isNaN(w) || isNaN(h)) return;
     try {
-      const history = JSON.parse(localStorage.getItem("bmi_history") || "[]");
-      const tuple = [
+      const currentHistory = JSON.parse(localStorage.getItem("bmi_history") || "[]");
+      const tuple: [string, string, number, number] = [
         name(),
         date(),
-        parseFloat(computedBmi.toFixed(2)),
-        status()
+        w,
+        h
       ];
-      history.push(tuple);
-      localStorage.setItem("bmi_history", JSON.stringify(history));
+      currentHistory.push(tuple);
+      localStorage.setItem("bmi_history", JSON.stringify(currentHistory));
+      setHistory(currentHistory);
     } catch (e) {
       console.error("Failed to save to localStorage:", e);
     }
@@ -246,30 +259,37 @@ export default function BmiCalculator() {
       {/* Vertical Partition Line Element */}
       <div class="col-start-2 row-start-2 w-[1px] bg-space-convoy/30 h-full justify-self-center" />
 
-      {/* Results Box */}
-      <Show when={showResult()}>
-        <div
-          id="resultBox"
-          class={`col-start-3 row-start-2 p-[20px] rounded-[8px] border-l-[5px] text-left self-center w-full box-border ${bgClass()} ${borderClass()}`}
+      {/* Right Column - Results Box OR History Table */}
+      <div class="col-start-3 row-start-2 h-full w-full flex flex-col justify-center items-center box-border px-6">
+        <Show
+          when={isSplit()}
+          fallback={
+            <BMITable history={history()} />
+          }
         >
-          <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-            Name: <span class="font-bold">{name()}</span>
-          </p>
-          <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-            Date: <span class="font-bold">{date()}</span>
-          </p>
-          <hr class="border-t border-space-convoy/20 my-3" />
-          <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-            Your BMI is:{" "}
-            <strong id="bmiValue" class="text-[28px] text-all-systems-red font-bold block mt-1">
-              {bmi()?.toFixed(2)}
-            </strong>
-          </p>
-          <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-            Result: <span id="bmiStatus" class="font-bold text-[18px] block mt-1">{status()}</span>
-          </p>
-        </div>
-      </Show>
+          <div
+            id="resultBox"
+            class={`w-full p-[20px] rounded-[8px] border-l-[5px] text-left box-border ${bgClass()} ${borderClass()}`}
+          >
+            <p class="my-[8px] mx-0 text-vintage-charm text-sm">
+              Name: <span class="font-bold">{name()}</span>
+            </p>
+            <p class="my-[8px] mx-0 text-vintage-charm text-sm">
+              Date: <span class="font-bold">{date()}</span>
+            </p>
+            <hr class="border-t border-space-convoy/20 my-3" />
+            <p class="my-[8px] mx-0 text-vintage-charm text-sm">
+              Your BMI is:{" "}
+              <strong id="bmiValue" class="text-[28px] text-all-systems-red font-bold block mt-1">
+                {bmi()?.toFixed(2)}
+              </strong>
+            </p>
+            <p class="my-[8px] mx-0 text-vintage-charm text-sm">
+              Result: <span id="bmiStatus" class="font-bold text-[18px] block mt-1">{status()}</span>
+            </p>
+          </div>
+        </Show>
+      </div>
     </div>
   );
 }
