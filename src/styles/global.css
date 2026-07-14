@@ -2,4 +2,23 @@
 
 @theme {
   --font-sans: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+  /* 8-color palette */
+  --color-kala-black:    #FAF8F5; /* Kala Black     — almost white background */
+  --color-cape-storm:    #EDE4D8; /* Cape Storm     — warm cream, surfaces */
+  --color-space-convoy:  #C84B14; /* Space Convoy   — carrot ordinary */
+  --color-all-systems-red: #FF5C1A; /* All Systems Red — bright carrot accent */
+  --color-vintage-charm: #2C1A0E; /* Vintage Charm  — dark brown, primary text */
+  --color-parchment:     #5A9100; /* Parchment      — lime ordinary */
+  --color-iron-teal:     #A8D900; /* Iron Teal      — bright lime accent */
+  --color-ember:         #8B6B4A; /* Ember           — medium warm brown */
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 35s linear infinite;
 }
