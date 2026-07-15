@@ -11,19 +11,25 @@ export default function BmiCalculator() {
   const [name, setName] = createSignal<string>("");
   const [weight, setWeight] = createSignal<string>("");
   const [height, setHeight] = createSignal<string>("");
-  const [date, setDate] = createSignal<string>(defaultDate);
+  const [date, setDate] = createSignal<Date>(new Date());
   const [bmi, setBmi] = createSignal<number | null>(null);
   const [status, setStatus] = createSignal<string>("");
   const [bgClass, setBgClass] = createSignal<string>("bg-kala-black");
   const [borderClass, setBorderClass] = createSignal<string>("border-space-convoy");
   const [showResult, setShowResult] = createSignal<boolean>(false);
   const [isSplit, setIsSplit] = createSignal<boolean>(false);
-  const [history, setHistory] = createSignal<Array<[string, string, number, number]>>([]);
+  const [history, setHistory] = createSignal<Array<[string, Date, number, number]>>([]);
 
   onMount(() => {
     try {
-      const data = JSON.parse(localStorage.getItem("bmi_history") || "[]");
-      setHistory(data);
+      const raw = JSON.parse(localStorage.getItem("bmi_history") || "[]") as [string, string, number, number][];
+      const formatted = raw.map((item): [string, Date, number, number] => [
+        item[0],
+        new Date(item[1]),
+        item[2],
+        item[3]
+      ]);
+      setHistory(formatted);
     } catch (e) {
       console.error("Failed to load history from localStorage:", e);
     }
@@ -87,16 +93,22 @@ export default function BmiCalculator() {
     const h = parseFloat(height());
     if (isNaN(w) || isNaN(h)) return;
     try {
-      const currentHistory = JSON.parse(localStorage.getItem("bmi_history") || "[]");
-      const tuple: [string, string, number, number] = [
+      const currentHistory = JSON.parse(localStorage.getItem("bmi_history") || "[]") as [string, string, number, number][];
+      currentHistory.push([
         name(),
-        date(),
+        date().toISOString(),
         w,
         h
-      ];
-      currentHistory.push(tuple);
+      ]);
       localStorage.setItem("bmi_history", JSON.stringify(currentHistory));
-      setHistory(currentHistory);
+      
+      const formatted = currentHistory.map((item): [string, Date, number, number] => [
+        item[0],
+        new Date(item[1]),
+        item[2],
+        item[3]
+      ]);
+      setHistory(formatted);
     } catch (e) {
       console.error("Failed to save to localStorage:", e);
     }
@@ -189,9 +201,7 @@ export default function BmiCalculator() {
                 onChange={(data) => {
                   if (data.type === "single" && data.selectedDate) {
                     const { year, month, day } = data.selectedDate;
-                    const formattedMonth = String((month ?? 0) + 1).padStart(2, "0");
-                    const formattedDay = String(day ?? 1).padStart(2, "0");
-                    setDate(`${year}-${formattedMonth}-${formattedDay}`);
+                    setDate(new Date(year ?? 0, month ?? 0, day ?? 1));
                   }
                 }}
                 renderInput={(pickerProps) => (
@@ -199,8 +209,13 @@ export default function BmiCalculator() {
                     <input
                       type="text"
                       placeholder="e.g. 2026-07-14"
-                      value={date()}
-                      onInput={(e) => setDate(e.currentTarget.value)}
+                      value={`${date().getFullYear()}-${String(date().getMonth() + 1).padStart(2, "0")}-${String(date().getDate()).padStart(2, "0")}`}
+                      onInput={(e) => {
+                        const parts = e.currentTarget.value.split("-").map(Number);
+                        if (parts.length === 3 && !parts.some(isNaN)) {
+                          setDate(new Date(parts[0], parts[1] - 1, parts[2]));
+                        }
+                      }}
                       class="w-full p-[10px] pr-[40px] border-none rounded-[8px] box-border text-[16px] outline-none bg-transparent text-vintage-charm"
                     />
                     <Calendar 
@@ -275,7 +290,7 @@ export default function BmiCalculator() {
               Name: <span class="font-bold">{name()}</span>
             </p>
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-              Date: <span class="font-bold">{date()}</span>
+              Date: <span class="font-bold">{date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
             </p>
             <hr class="border-t border-space-convoy/20 my-3" />
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">

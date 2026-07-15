@@ -17,7 +17,7 @@ export type BmiRecord = {
 };
 
 interface BMITableProps {
-  history: Array<[string, string, number, number]>;
+  history: Array<[string, Date, number, number]>;
 }
 
 const columns: ColumnDef<BmiRecord>[] = [
@@ -66,7 +66,7 @@ export default function BMITable(props: BMITableProps) {
       const item = props.history[i];
       // Tuple is [name, date, weight, height]
       const nameVal = typeof item[0] === "string" ? item[0] : "";
-      const dateVal = typeof item[1] === "string" ? item[1] : "";
+      const dateVal = item[1] instanceof Date ? item[1].toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
       const weightVal = typeof item[2] === "number" ? item[2] : 0;
       const heightVal = typeof item[3] === "number" ? item[3] : 0;
 
