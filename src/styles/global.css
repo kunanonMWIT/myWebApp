@@ -22,12 +22,3 @@
 .animate-marquee {
   animation: marquee 35s linear infinite;
 }
-
-@keyframes fadeInRow {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-fade-in-row {
-  animation: fadeInRow 0.35s ease-out;
-}
