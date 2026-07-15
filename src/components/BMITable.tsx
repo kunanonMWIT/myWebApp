@@ -1,4 +1,4 @@
-import { createSignal, For } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import {
   flexRender,
   createSolidTable,
@@ -7,79 +7,104 @@ import {
   getFilteredRowModel,
 } from "@tanstack/solid-table";
 import type { ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/solid-table";
+import { Trash2 } from "lucide-solid";
 
-export type BmiRecord = {
+export type StudyRecord = {
   date: string;
-  name: string;
-  weight: number;
-  height: number;
-  bmi: number;
+  subject: string;
+  chapters: number;
+  time: number;
+  speed: number;
+  originalIndex: number;
 };
 
-interface BMITableProps {
+interface StudyTableProps {
   history: Array<[string, Date, number, number]>;
+  onDelete?: (index: number) => void;
 }
 
-const columns: ColumnDef<BmiRecord>[] = [
-  {
-    accessorKey: "date",
-    header: "Date",
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-  },
-  {
-    accessorKey: "weight",
-    header: "Weight (kg)",
-    cell: (info) => {
-      const val = info.getValue();
-      return typeof val === "number" && val > 0 ? val.toString() : "-";
-    }
-  },
-  {
-    accessorKey: "height",
-    header: "Height (cm)",
-    cell: (info) => {
-      const val = info.getValue();
-      return typeof val === "number" && val > 0 ? val.toString() : "-";
-    }
-  },
-  {
-    accessorKey: "bmi",
-    header: "BMI",
-    cell: (info) => {
-      const val = info.getValue();
-      return typeof val === "number" ? val.toFixed(2) : "";
-    }
-  },
-];
-
-export default function BMITable(props: BMITableProps) {
+export default function StudyTable(props: StudyTableProps) {
   const [sorting, setSorting] = createSignal<SortingState>([]);
   const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>([]);
 
-  // Map the raw history tuples to BmiRecord objects
+  const columns: ColumnDef<StudyRecord>[] = [
+    {
+      accessorKey: "date",
+      header: "Date",
+    },
+    {
+      accessorKey: "subject",
+      header: "Subject",
+    },
+    {
+      accessorKey: "chapters",
+      header: "Chapters",
+      cell: (info) => {
+        const val = info.getValue();
+        return typeof val === "number" && val > 0 ? val.toString() : "-";
+      }
+    },
+    {
+      accessorKey: "time",
+      header: "Time",
+      filterFn: (row, _columnId, filterValue) => {
+        const val = row.getValue("time") as number;
+        if (typeof val !== "number" || val <= 0) return false;
+        const h = Math.floor(val / 60);
+        const m = val % 60;
+        const display = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        return display.toLowerCase().includes(String(filterValue).toLowerCase());
+      },
+      cell: (info) => {
+        const val = info.getValue();
+        if (typeof val !== "number" || val <= 0) return "-";
+        const h = Math.floor(val / 60);
+        const m = val % 60;
+        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+      }
+    },
+    {
+      accessorKey: "speed",
+      header: "Speed",
+      cell: (info) => {
+        const val = info.getValue();
+        const row = info.row.original;
+        return (
+          <div class="flex items-center justify-between gap-1">
+            <span>{typeof val === "number" ? val.toFixed(2) : ""}</span>
+            <button
+              onClick={() => props.onDelete?.(row.originalIndex)}
+              class="text-ember hover:text-all-systems-red transition-colors cursor-pointer shrink-0"
+              title="Delete"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        );
+      }
+    },
+  ];
+
+  // Map the raw history tuples to StudyRecord objects
   const tableData = () => {
-    const list: BmiRecord[] = [];
+    const list: StudyRecord[] = [];
     for (let i = 0; i < props.history.length; i++) {
       const item = props.history[i];
-      // Tuple is [name, date, weight, height]
-      const nameVal = typeof item[0] === "string" ? item[0] : "";
+      // Tuple is [subject, date, chapters, totalMinutes]
+      const subjectVal = typeof item[0] === "string" ? item[0] : "";
       const dateVal = item[1] instanceof Date ? item[1].toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
-      const weightVal = typeof item[2] === "number" ? item[2] : 0;
-      const heightVal = typeof item[3] === "number" ? item[3] : 0;
+      const chaptersVal = typeof item[2] === "number" ? item[2] : 0;
+      const timeVal = typeof item[3] === "number" ? item[3] : 0;
 
-      // Calculate BMI at runtime
-      const heightInMeters = heightVal / 100;
-      const bmiVal = heightInMeters > 0 ? weightVal / (heightInMeters * heightInMeters) : 0;
+      const speedVal = chaptersVal > 0 ? timeVal / chaptersVal : 0;
 
       list.push({
         date: dateVal,
-        name: nameVal,
-        weight: weightVal,
-        height: heightVal,
-        bmi: bmiVal,
+        subject: subjectVal,
+        chapters: chaptersVal,
+        time: timeVal,
+        speed: speedVal,
+        originalIndex: i,
       });
     }
     return list;
@@ -167,7 +192,7 @@ export default function BMITable(props: BMITableProps) {
                 <tr class="border-b border-space-convoy/10 hover:bg-space-convoy/5 transition-colors duration-150">
                   <For each={row.getVisibleCells()}>
                     {(cell) => (
-                      <td class="p-2 align-middle">
+                      <td class="p-2 align-middle whitespace-nowrap">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     )}

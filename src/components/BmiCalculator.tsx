@@ -1,6 +1,6 @@
 import { createSignal, Show, For, onMount } from "solid-js";
-import BMITable from "./BMITable";
-import { User, Scale, Ruler, Calendar, Trash2 } from "lucide-solid";
+import StudyTable from "./BMITable";
+import { Book, Hash, Clock, Calendar, Trash2 } from "lucide-solid";
 import DatePicker from "@rnwonder/solid-date-picker";
 import "@rnwonder/solid-date-picker/dist/style.css";
 
@@ -8,11 +8,12 @@ export default function BmiCalculator() {
   const today = new Date();
   const defaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-  const [name, setName] = createSignal<string>("");
-  const [weight, setWeight] = createSignal<string>("");
-  const [height, setHeight] = createSignal<string>("");
+  const [subject, setSubject] = createSignal<string>("");
+  const [chapters, setChapters] = createSignal<string>("");
+  const [hours, setHours] = createSignal<string>("");
+  const [minutes, setMinutes] = createSignal<string>("");
   const [date, setDate] = createSignal<Date>(new Date());
-  const [bmi, setBmi] = createSignal<number | null>(null);
+  const [speed, setSpeed] = createSignal<number | null>(null);
   const [status, setStatus] = createSignal<string>("");
   const [bgClass, setBgClass] = createSignal<string>("bg-kala-black");
   const [borderClass, setBorderClass] = createSignal<string>("border-space-convoy");
@@ -22,7 +23,7 @@ export default function BmiCalculator() {
 
   onMount(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem("bmi_history") || "[]") as [string, string, number, number][];
+      const raw = JSON.parse(localStorage.getItem("study_tracker_history") || "[]") as [string, string, number, number][];
       const formatted = raw.map((item): [string, Date, number, number] => [
         item[0],
         new Date(item[1]),
@@ -36,16 +37,23 @@ export default function BmiCalculator() {
   });
 
   const calculateBmi = () => {
-    const w = parseFloat(weight());
-    const h = parseFloat(height());
+    const ch = parseInt(chapters());
+    const h = parseInt(hours()) || 0;
+    const m = parseInt(minutes()) || 0;
+    const totalMin = h * 60 + m;
 
-    if (!name().trim()) {
-      alert("Please enter a name.");
+    if (!subject().trim()) {
+      alert("Please enter a subject.");
       return;
     }
 
-    if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
-      alert("Please enter valid weight and height values.");
+    if (isNaN(ch) || ch <= 0) {
+      alert("Please enter a valid number of chapters.");
+      return;
+    }
+
+    if (totalMin <= 0) {
+      alert("Please enter a valid time.");
       return;
     }
 
@@ -54,28 +62,27 @@ export default function BmiCalculator() {
       return;
     }
 
-    const heightInMeters = h / 100;
-    const computedBmi = w / (heightInMeters * heightInMeters);
-    setBmi(computedBmi);
+    const computedSpeed = totalMin / ch;
+    setSpeed(computedSpeed);
 
     let currentStatus = "";
     let currentBg = "";
     let currentBorder = "";
 
-    if (computedBmi < 18.5) {
-      currentStatus = "Underweight";
+    if (computedSpeed < 15) {
+      currentStatus = "Fast";
       currentBg = "bg-kala-black";
-      currentBorder = "border-space-convoy";
-    } else if (computedBmi >= 18.5 && computedBmi < 23) {
-      currentStatus = "Normal Weight";
+      currentBorder = "border-parchment";
+    } else if (computedSpeed >= 15 && computedSpeed < 30) {
+      currentStatus = "Moderate";
       currentBg = "bg-kala-black";
       currentBorder = "border-vintage-charm";
-    } else if (computedBmi >= 23 && computedBmi < 25) {
-      currentStatus = "Overweight";
+    } else if (computedSpeed >= 30 && computedSpeed < 45) {
+      currentStatus = "Slow";
       currentBg = "bg-kala-black";
-      currentBorder = "border-all-systems-red";
+      currentBorder = "border-space-convoy";
     } else {
-      currentStatus = "Obese";
+      currentStatus = "Very Slow";
       currentBg = "bg-kala-black";
       currentBorder = "border-all-systems-red";
     }
@@ -89,18 +96,20 @@ export default function BmiCalculator() {
   };
 
   const saveBmi = () => {
-    const w = parseFloat(weight());
-    const h = parseFloat(height());
-    if (isNaN(w) || isNaN(h)) return;
+    const ch = parseInt(chapters());
+    const h = parseInt(hours()) || 0;
+    const m = parseInt(minutes()) || 0;
+    const totalMin = h * 60 + m;
+    if (isNaN(ch) || ch <= 0 || totalMin <= 0) return;
     try {
-      const currentHistory = JSON.parse(localStorage.getItem("bmi_history") || "[]") as [string, string, number, number][];
+      const currentHistory = JSON.parse(localStorage.getItem("study_tracker_history") || "[]") as [string, string, number, number][];
       currentHistory.push([
-        name(),
+        subject(),
         date().toISOString(),
-        w,
-        h
+        ch,
+        totalMin
       ]);
-      localStorage.setItem("bmi_history", JSON.stringify(currentHistory));
+      localStorage.setItem("study_tracker_history", JSON.stringify(currentHistory));
       
       const formatted = currentHistory.map((item): [string, Date, number, number] => [
         item[0],
@@ -117,66 +126,93 @@ export default function BmiCalculator() {
 
   const discardBmi = () => {
     setShowResult(false);
-    setBmi(null);
+    setSpeed(null);
     setStatus("");
     setIsSplit(false);
+  };
+
+  const deleteRecord = (index: number) => {
+    const currentHistory = [...history()];
+    currentHistory.splice(index, 1);
+    setHistory(currentHistory);
+    const raw = currentHistory.map((item): [string, string, number, number] => [
+      item[0],
+      item[1].toISOString(),
+      item[2],
+      item[3]
+    ]);
+    localStorage.setItem("study_tracker_history", JSON.stringify(raw));
   };
 
   return (
     <div class="bg-cape-storm p-[30px] rounded-[15px] w-[1000px] h-[600px] box-border font-sans grid grid-cols-[2fr_1px_3fr] grid-rows-[auto_1fr] gap-x-6 gap-y-3">
       {/* Header title */}
       <h2 class="text-vintage-charm text-[24px] font-bold mt-0 col-span-3 text-center mb-[20px]">
-        BMI Calculator
+        Reading Tracker
       </h2>
 
       {/* Left Column Wrapper - Form inputs & Action */}
       <div class="col-start-1 row-start-2 flex flex-col justify-between h-full text-left box-border">
-          {/* Name Field */}
+          {/* Subject Field */}
           <div class="relative w-full text-left">
             <label class="absolute bottom-full left-0 mb-2 flex items-center gap-2 text-[14px] text-space-convoy font-bold">
-              <User size={16} class="text-all-systems-red" />
-              Name:
+              <Book size={16} class="text-all-systems-red" />
+              Subject:
             </label>
             <input
               type="text"
-              id="name"
-              placeholder="e.g. Kunanon"
-              value={name()}
-              onInput={(e) => setName(e.currentTarget.value)}
+              id="subject"
+              placeholder="e.g. Mathematics"
+              value={subject()}
+              onInput={(e) => setSubject(e.currentTarget.value)}
               class="w-full p-[10px] border-none rounded-[8px] box-border text-[16px] outline-none bg-kala-black text-vintage-charm"
             />
           </div>
-          {/* Weight Field */}
+          {/* Chapters Field */}
           <div class="relative w-full text-left">
             <label class="absolute bottom-full left-0 mb-2 flex items-center gap-2 text-[14px] text-space-convoy font-bold">
-              <Scale size={16} class="text-all-systems-red" />
-              Weight (kg):
+              <Hash size={16} class="text-all-systems-red" />
+              Chapters:
             </label>
             <input
               type="number"
-              id="weight"
-              placeholder="e.g. 65"
+              id="chapters"
+              placeholder="e.g. 8"
               min="1"
-              value={weight()}
-              onInput={(e) => setWeight(e.currentTarget.value)}
+              value={chapters()}
+              onInput={(e) => setChapters(e.currentTarget.value)}
               class="w-full p-[10px] border-none rounded-[8px] box-border text-[16px] outline-none bg-kala-black text-vintage-charm"
             />
           </div>
 
+          {/* Time Field */}
           <div class="relative w-full text-left">
             <label class="absolute bottom-full left-0 mb-2 flex items-center gap-2 text-[14px] text-space-convoy font-bold">
-              <Ruler size={16} class="text-all-systems-red" />
-              Height (cm):
+              <Clock size={16} class="text-all-systems-red" />
+              Time:
             </label>
-            <input
-              type="number"
-              id="height"
-              placeholder="e.g. 170"
-              min="1"
-              value={height()}
-              onInput={(e) => setHeight(e.currentTarget.value)}
-              class="w-full p-[10px] border-none rounded-[8px] box-border text-[16px] outline-none bg-kala-black text-vintage-charm"
-            />
+            <div class="flex gap-2 w-full">
+              <input
+                type="number"
+                id="hours"
+                placeholder="h"
+                min="0"
+                value={hours()}
+                onInput={(e) => setHours(e.currentTarget.value)}
+                class="w-full p-[10px] border-none rounded-[8px] box-border text-[16px] outline-none bg-kala-black text-vintage-charm"
+              />
+              <span class="flex items-center text-vintage-charm font-bold">:</span>
+              <input
+                type="number"
+                id="minutes"
+                placeholder="m"
+                min="0"
+                max="59"
+                value={minutes()}
+                onInput={(e) => setMinutes(e.currentTarget.value)}
+                class="w-full p-[10px] border-none rounded-[8px] box-border text-[16px] outline-none bg-kala-black text-vintage-charm"
+              />
+            </div>
           </div>
 
           {/* Date Field with Custom Picker Popup */}
@@ -240,7 +276,7 @@ export default function BmiCalculator() {
               isSplit() ? "opacity-0 pointer-events-none scale-95" : "opacity-100 scale-100"
             }`}
           >
-            Calculate BMI
+            Calculate
           </button>
 
           {/* Save & Discard Buttons */}
@@ -279,7 +315,7 @@ export default function BmiCalculator() {
         <Show
           when={isSplit()}
           fallback={
-            <BMITable history={history()} />
+            <StudyTable history={history()} onDelete={deleteRecord} />
           }
         >
           <div
@@ -287,20 +323,20 @@ export default function BmiCalculator() {
             class={`w-full p-[20px] rounded-[8px] border-l-[5px] text-left box-border ${bgClass()} ${borderClass()}`}
           >
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-              Name: <span class="font-bold">{name()}</span>
+              Subject: <span class="font-bold">{subject()}</span>
             </p>
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">
               Date: <span class="font-bold">{date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
             </p>
             <hr class="border-t border-space-convoy/20 my-3" />
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-              Your BMI is:{" "}
-              <strong id="bmiValue" class="text-[28px] text-all-systems-red font-bold block mt-1">
-                {bmi()?.toFixed(2)}
+              Speed:{" "}
+              <strong id="speedValue" class="text-[28px] text-all-systems-red font-bold block mt-1">
+                {speed()?.toFixed(2)} <span class="text-base font-normal">min/ch</span>
               </strong>
             </p>
             <p class="my-[8px] mx-0 text-vintage-charm text-sm">
-              Result: <span id="bmiStatus" class="font-bold text-[18px] block mt-1">{status()}</span>
+              Pace: <span id="speedStatus" class="font-bold text-[18px] block mt-1">{status()}</span>
             </p>
           </div>
         </Show>
