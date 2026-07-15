@@ -131,10 +131,10 @@ export default function StudyTable(props: StudyTableProps) {
   });
 
   return (
-    <div class="w-full h-full max-h-[460px] overflow-y-auto box-border pr-1 select-none">
+    <div class="w-full h-full max-h-full overflow-y-auto box-border pr-1 select-none">
       <div class="border border-space-convoy/30 rounded-[8px] overflow-hidden bg-kala-black">
         <table class="w-full border-collapse text-left text-sm text-vintage-charm">
-          <thead>
+          <thead class="sticky top-0 z-10">
             <For each={table.getHeaderGroups()}>
               {(headerGroup) => (
                 <>
@@ -155,8 +155,8 @@ export default function StudyTable(props: StudyTableProps) {
                                 {header.column.getIsSorted() === "asc"
                                   ? " ▲"
                                   : header.column.getIsSorted() === "desc"
-                                  ? " ▼"
-                                  : " ↕"}
+                                    ? " ▼"
+                                    : " ↕"}
                               </span>
                             </div>
                           </Show>

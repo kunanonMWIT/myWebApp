@@ -6,7 +6,7 @@ import BmiCalculator from "../components/BmiCalculator";
 import "../styles/global.css";
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 	<head>
 		<meta charset="utf-8" />
@@ -15,10 +15,10 @@ import "../styles/global.css";
 		<meta name="generator" content={Astro.generator} />
 		<title>Reading Tracker</title>
 	</head>
-	<body class="font-sans bg-kala-black flex flex-col justify-between min-h-screen m-0">
+	<body class="font-sans bg-kala-black flex flex-col h-screen m-0">
 		<Header />
 		<Marquee client:only="solid-js" />
-		<main class="flex-grow flex items-center justify-center">
+		<main class="flex-1 min-h-0 flex p-6">
 			<BmiCalculator client:only="solid-js" />
 		</main>
 		<Footer />
