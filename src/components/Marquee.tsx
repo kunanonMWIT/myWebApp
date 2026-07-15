@@ -13,12 +13,12 @@ import {
 } from "lucide-solid";
 
 const items = [
-  "Read daily — even 10 pages a day adds up",
+  "Read daily, even 10 pages a day adds up",
   "Active recall beats passive reading",
   "Summarize each chapter in your own words",
   "Take short breaks every 25 minutes",
   "Review notes within 24 hours",
-  "Teach someone to cement your learning",
+  "Teach someone and you will remember it",
   "Space your reviews across days",
   "Set a timer for focused study sessions",
   "Highlight key concepts, not entire pages",
