@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, createComputed, For, Show } from "solid-js";
 import {
   flexRender,
   createSolidTable,
@@ -26,6 +26,18 @@ interface StudyTableProps {
 export default function StudyTable(props: StudyTableProps) {
   const [sorting, setSorting] = createSignal<SortingState>([]);
   const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>([]);
+  const [deletingIndex, setDeletingIndex] = createSignal<number | null>(null);
+  const [animatingRow, setAnimatingRow] = createSignal(-1);
+  let prevLen = 0;
+
+  createComputed(() => {
+    const len = props.history.length;
+    if (len > prevLen) {
+      setAnimatingRow(len - 1);
+      setTimeout(() => setAnimatingRow(-1), 400);
+    }
+    prevLen = len;
+  });
 
   const columns: ColumnDef<StudyRecord>[] = [
     {
@@ -73,8 +85,15 @@ export default function StudyTable(props: StudyTableProps) {
           <div class="flex items-center justify-between gap-1">
             <span>{typeof val === "number" ? val.toFixed(2) : ""}</span>
             <button
-              onClick={() => props.onDelete?.(row.originalIndex)}
-              class="text-ember hover:text-all-systems-red transition-colors cursor-pointer shrink-0"
+              disabled={deletingIndex() !== null}
+              onClick={() => {
+                setDeletingIndex(row.originalIndex);
+                setTimeout(() => {
+                  props.onDelete?.(row.originalIndex);
+                  setDeletingIndex(null);
+                }, 300);
+              }}
+              class="text-ember hover:text-all-systems-red transition-colors cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
               title="Delete"
             >
               <Trash2 size={13} />
@@ -189,7 +208,9 @@ export default function StudyTable(props: StudyTableProps) {
           <tbody>
             <For each={table.getRowModel().rows}>
               {(row) => (
-                <tr class="border-b border-space-convoy/10 hover:bg-space-convoy/5 transition-colors duration-150">
+                <tr class={`border-b border-space-convoy/10 hover:bg-space-convoy/5 transition-all duration-300 ${
+                    deletingIndex() === row.original.originalIndex ? "opacity-0 -translate-x-4" : ""
+                  } ${animatingRow() === row.original.originalIndex ? "animate-fade-in-row" : ""}`}>
                   <For each={row.getVisibleCells()}>
                     {(cell) => (
                       <td class="p-2 align-middle whitespace-nowrap">
