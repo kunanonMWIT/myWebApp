@@ -2,7 +2,7 @@
 import Header from "../components/Header.astro";
 import Marquee from "../components/Marquee";
 import Footer from "../components/Footer.astro";
-import BmiCalculator from "../components/BmiCalculator";
+import Carousel from "../components/Carousel";
 import "../styles/global.css";
 ---
 
@@ -19,7 +19,7 @@ import "../styles/global.css";
 		<Header />
 		<Marquee client:only="solid-js" />
 		<main class="flex-grow flex items-center justify-center">
-			<BmiCalculator client:only="solid-js" />
+			<Carousel client:only="solid-js" />
 		</main>
 		<Footer />
 	</body>
