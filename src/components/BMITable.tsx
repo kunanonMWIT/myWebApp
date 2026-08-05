@@ -8,8 +8,9 @@ import {
 } from "@tanstack/solid-table";
 import type { ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/solid-table";
 import { Trash2 } from "lucide-solid";
+import type { StudyRecord } from "../lib/supabase";
 
-export type StudyRecord = {
+export type TableRow = {
   date: string;
   subject: string;
   chapters: number;
@@ -19,7 +20,7 @@ export type StudyRecord = {
 };
 
 interface StudyTableProps {
-  history: Array<[string, Date, number, number]>;
+  history: StudyRecord[];
   onDelete?: (index: number) => void;
 }
 
@@ -27,7 +28,7 @@ export default function StudyTable(props: StudyTableProps) {
   const [sorting, setSorting] = createSignal<SortingState>([]);
   const [columnFilters, setColumnFilters] = createSignal<ColumnFiltersState>([]);
 
-  const columns: ColumnDef<StudyRecord>[] = [
+  const columns: ColumnDef<TableRow>[] = [
     {
       accessorKey: "date",
       header: "Date",
@@ -85,16 +86,24 @@ export default function StudyTable(props: StudyTableProps) {
     },
   ];
 
-  // Map the raw history tuples to StudyRecord objects
+  // Map the raw history records to TableRow objects
   const tableData = () => {
-    const list: StudyRecord[] = [];
+    const list: TableRow[] = [];
     for (let i = 0; i < props.history.length; i++) {
       const item = props.history[i];
-      // Tuple is [subject, date, chapters, totalMinutes]
-      const subjectVal = typeof item[0] === "string" ? item[0] : "";
-      const dateVal = item[1] instanceof Date ? item[1].toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "";
-      const chaptersVal = typeof item[2] === "number" ? item[2] : 0;
-      const timeVal = typeof item[3] === "number" ? item[3] : 0;
+      // Record fields are subjectName, createdAt, chapters, totalMinutes
+      const subjectVal = item.subjectName;
+      const dateVal =
+        item.createdAt instanceof Date
+          ? item.createdAt.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })
+          : "";
+      const chaptersVal = typeof item.chapters === "number" ? item.chapters : 0;
+      const timeVal =
+        typeof item.totalMinutes === "number" ? item.totalMinutes : 0;
 
       const speedVal = chaptersVal > 0 ? timeVal / chaptersVal : 0;
 

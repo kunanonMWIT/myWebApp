@@ -1,12 +1,23 @@
 import { createSignal, Show, For, onMount, createEffect } from "solid-js";
 import * as d3 from "d3";
 import StudyTable from "./BMITable";
-import { Book, Hash, Clock, Calendar, Trash2 } from "lucide-solid";
+import { Book, Hash, Clock, Calendar, Trash2, Eye, EyeOff, Plug, Unplug } from "lucide-solid";
 import DatePicker from "@rnwonder/solid-date-picker";
 import "@rnwonder/solid-date-picker/dist/style.css";
+import {
+  createStudyClient,
+  verifyConnection,
+  fetchRecords,
+  insertRecord,
+  deleteRecord as deleteCloudRecord,
+  type StudyRecord,
+  type SupabaseClient,
+} from "../lib/supabase";
+
+const CREDS_KEY = "supabase_credentials";
 
 // ─── Speed Scatterplot with Trend Line ───────────────────────────────────────
-function SpeedChart(props: { history: Array<[string, Date, number, number]> }) {
+function SpeedChart(props: { history: StudyRecord[] }) {
   let containerRef: HTMLDivElement | undefined;
   let svgRef: SVGSVGElement | undefined;
 
@@ -14,10 +25,10 @@ function SpeedChart(props: { history: Array<[string, Date, number, number]> }) {
     const raw = props.history; // reactive read
 
     const data = raw
-      .filter((item) => item[2] > 0 && item[3] > 0)
+      .filter((item) => item.chapters > 0 && item.totalMinutes > 0)
       .map((item) => ({
-        date: item[1],
-        speed: item[3] / item[2],
+        date: item.createdAt,
+        speed: item.totalMinutes / item.chapters,
       }))
       .sort((a, b) => a.date.getTime() - b.date.getTime());
 
@@ -191,22 +202,82 @@ export default function BmiCalculator() {
   const [borderClass, setBorderClass] = createSignal<string>("border-space-convoy");
   const [showResult, setShowResult] = createSignal<boolean>(false);
   const [isSplit, setIsSplit] = createSignal<boolean>(false);
-  const [history, setHistory] = createSignal<Array<[string, Date, number, number]>>([]);
+  const [history, setHistory] = createSignal<StudyRecord[]>([]);
+
+  // Supabase connection state
+  const [supabaseUrl, setSupabaseUrl] = createSignal<string>("");
+  const [supabaseKey, setSupabaseKey] = createSignal<string>("");
+  const [showKey, setShowKey] = createSignal<boolean>(false);
+  const [sb, setSb] = createSignal<SupabaseClient | null>(null);
+  const [connStatus, setConnStatus] = createSignal<"idle" | "connecting" | "connected" | "error">("idle");
+  const [connError, setConnError] = createSignal<string>("");
+
+  const loadRecords = async (client: SupabaseClient) => {
+    const records = await fetchRecords(client);
+    setHistory(records);
+    try {
+      localStorage.removeItem("study_tracker_history");
+    } catch (e) {
+      console.error("Failed to clean up legacy localStorage:", e);
+    }
+  };
+
+  const connect = async (url: string, key: string) => {
+    setConnStatus("connecting");
+    setConnError("");
+    try {
+      const client = createStudyClient(url.trim(), key.trim());
+      await verifyConnection(client);
+      setSb(client);
+      setConnStatus("connected");
+      await loadRecords(client);
+      try {
+        localStorage.setItem(
+          CREDS_KEY,
+          JSON.stringify({ url: url.trim(), key: key.trim() })
+        );
+      } catch (e) {
+        console.error("Failed to persist Supabase credentials:", e);
+      }
+    } catch (e) {
+      setSb(null);
+      setConnStatus("error");
+      setConnError(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const connectClick = () => {
+    if (!supabaseUrl().trim() || !supabaseKey().trim()) {
+      alert("Please enter both the Supabase URL and anon key.");
+      return;
+    }
+    void connect(supabaseUrl(), supabaseKey());
+  };
+
+  const disconnect = () => {
+    setSb(null);
+    setConnStatus("idle");
+    setConnError("");
+    setHistory([]);
+    try {
+      localStorage.removeItem(CREDS_KEY);
+    } catch (e) {
+      console.error("Failed to clear Supabase credentials:", e);
+    }
+  };
 
   onMount(() => {
     try {
-      const raw = JSON.parse(
-        localStorage.getItem("study_tracker_history") || "[]"
-      ) as [string, string, number, number][];
-      const formatted = raw.map((item): [string, Date, number, number] => [
-        item[0],
-        new Date(item[1]),
-        item[2],
-        item[3],
-      ]);
-      setHistory(formatted);
+      const saved = JSON.parse(localStorage.getItem(CREDS_KEY) || "null") as
+        | { url?: string; key?: string }
+        | null;
+      if (saved && typeof saved.url === "string" && typeof saved.key === "string") {
+        setSupabaseUrl(saved.url);
+        setSupabaseKey(saved.key);
+        void connect(saved.url, saved.key);
+      }
     } catch (e) {
-      console.error("Failed to load history from localStorage:", e);
+      console.error("Failed to load Supabase credentials:", e);
     }
   });
 
@@ -242,26 +313,29 @@ export default function BmiCalculator() {
     setIsSplit(true);
   };
 
-  const saveBmi = () => {
+  const saveBmi = async () => {
     const ch = parseInt(chapters());
     const h = parseInt(hours()) || 0;
     const m = parseInt(minutes()) || 0;
     const totalMin = h * 60 + m;
     if (isNaN(ch) || ch <= 0 || totalMin <= 0) return;
-    try {
-      const currentHistory = JSON.parse(
-        localStorage.getItem("study_tracker_history") || "[]"
-      ) as [string, string, number, number][];
-      currentHistory.push([subject(), date().toISOString(), ch, totalMin]);
-      localStorage.setItem("study_tracker_history", JSON.stringify(currentHistory));
-      const formatted = currentHistory.map((item): [string, Date, number, number] => [
-        item[0], new Date(item[1]), item[2], item[3],
-      ]);
-      setHistory(formatted);
-    } catch (e) {
-      console.error("Failed to save to localStorage:", e);
+    const client = sb();
+    if (!client) {
+      alert("Connect to Supabase first to save.");
+      return;
     }
-    setIsSplit(false);
+    try {
+      const rec = await insertRecord(client, {
+        subjectName: subject(),
+        chapters: ch,
+        totalMinutes: totalMin,
+        createdAt: date(),
+      });
+      setHistory([...history(), rec]);
+      setIsSplit(false);
+    } catch (e) {
+      alert("Failed to save: " + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   const discardBmi = () => {
@@ -271,25 +345,89 @@ export default function BmiCalculator() {
     setIsSplit(false);
   };
 
-  const deleteRecord = (index: number) => {
-    const currentHistory = [...history()];
-    currentHistory.splice(index, 1);
-    setHistory(currentHistory);
-    const raw = currentHistory.map((item): [string, string, number, number] => [
-      item[0], item[1].toISOString(), item[2], item[3],
-    ]);
-    localStorage.setItem("study_tracker_history", JSON.stringify(raw));
+  const deleteRecord = async (index: number) => {
+    const client = sb();
+    const rec = history()[index];
+    if (!client || !rec?.id) return;
+    try {
+      await deleteCloudRecord(client, rec.id);
+      setHistory(history().filter((_, i) => i !== index));
+    } catch (e) {
+      alert("Failed to delete: " + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   return (
-    <div class="bg-cape-storm p-[30px] rounded-[15px] w-full h-full min-h-0 box-border font-sans grid grid-cols-[2fr_1px_3fr] grid-rows-[auto_1fr] gap-x-6 gap-y-3">
+    <div class="bg-cape-storm p-[30px] rounded-[15px] w-full h-full min-h-0 box-border font-sans grid grid-cols-[2fr_1px_3fr] grid-rows-[auto_auto_1fr] gap-x-6 gap-y-3">
       {/* Header */}
-      <h2 class="text-vintage-charm text-[24px] font-bold mt-0 col-span-3 text-center mb-[20px]">
+      <h2 class="text-vintage-charm text-[24px] font-bold mt-0 col-start-1 col-span-3 row-start-1 text-center mb-[10px]">
         Reading Tracker
       </h2>
 
+      {/* Supabase Connection */}
+      <div class="col-start-1 col-span-3 row-start-2 flex flex-wrap items-center gap-2 w-full mb-4">
+        <input
+          type="text"
+          placeholder="Supabase URL (https://xxxx.supabase.co)"
+          value={supabaseUrl()}
+          onInput={(e) => setSupabaseUrl(e.currentTarget.value)}
+          class="flex-1 min-w-[200px] p-[10px] border-none rounded-[8px] box-border text-[14px] outline-none bg-kala-black text-vintage-charm"
+        />
+        <div class="relative flex items-center flex-1 min-w-[200px]">
+          <input
+            type={showKey() ? "text" : "password"}
+            placeholder="Supabase anon key"
+            value={supabaseKey()}
+            onInput={(e) => setSupabaseKey(e.currentTarget.value)}
+            class="w-full p-[10px] pr-[36px] border-none rounded-[8px] box-border text-[14px] outline-none bg-kala-black text-vintage-charm"
+          />
+          <button
+            type="button"
+            onClick={() => setShowKey(!showKey())}
+            class="absolute right-[10px] text-space-convoy hover:text-all-systems-red cursor-pointer bg-transparent border-none p-0"
+            title={showKey() ? "Hide key" : "Show key"}
+          >
+            <Show when={showKey()} fallback={<Eye size={16} />}>
+              <EyeOff size={16} />
+            </Show>
+          </button>
+        </div>
+        <Show
+          when={connStatus() !== "connected"}
+          fallback={
+            <button
+              type="button"
+              onClick={disconnect}
+              class="flex items-center gap-1.5 bg-all-systems-red text-vintage-charm border-none rounded-[8px] px-4 h-[40px] cursor-pointer font-bold transition-colors duration-200 hover:bg-space-convoy shrink-0"
+              title="Disconnect"
+            >
+              <Unplug size={16} />
+              Disconnect
+            </button>
+          }
+        >
+          <button
+            type="button"
+            onClick={connectClick}
+            disabled={connStatus() === "connecting"}
+            class="flex items-center gap-1.5 bg-space-convoy text-vintage-charm border-none rounded-[8px] px-4 h-[40px] cursor-pointer font-bold transition-colors duration-200 hover:bg-all-systems-red disabled:opacity-60 disabled:cursor-wait shrink-0"
+          >
+            <Plug size={16} />
+            {connStatus() === "connecting" ? "Connecting..." : "Connect"}
+          </button>
+        </Show>
+        <Show when={connStatus() === "connected"}>
+          <span class="text-parchment text-xs font-bold">Connected</span>
+        </Show>
+        <Show when={connStatus() === "error"}>
+          <span class="text-all-systems-red text-xs font-bold break-all">
+            Connection failed: {connError()}
+          </span>
+        </Show>
+      </div>
+
       {/* Left Column */}
-      <div class="col-start-1 row-start-2 flex flex-col justify-between h-full text-left box-border min-h-0">
+      <div class="col-start-1 row-start-3 flex flex-col justify-between h-full text-left box-border min-h-0">
         {/* Subject */}
         <div class="relative w-full text-left">
           <label class="absolute bottom-full left-0 mb-2 flex items-center gap-2 text-[14px] text-space-convoy font-bold">
@@ -415,7 +553,7 @@ export default function BmiCalculator() {
           >
             <button
               type="button"
-              onClick={saveBmi}
+              onClick={() => void saveBmi()}
               class="flex-grow bg-parchment text-kala-black border-none rounded-[8px] cursor-pointer font-bold transition-colors duration-200 hover:bg-parchment/80 flex items-center justify-center h-[48px]"
             >
               Save
@@ -433,10 +571,10 @@ export default function BmiCalculator() {
       </div>
 
       {/* Vertical Divider */}
-      <div class="col-start-2 row-start-2 w-[1px] bg-space-convoy/30 h-full justify-self-center" />
+      <div class="col-start-2 row-start-3 w-[1px] bg-space-convoy/30 h-full justify-self-center" />
 
       {/* Right Column */}
-      <div class="col-start-3 row-start-2 h-full w-full min-h-0 flex flex-col box-border px-6 gap-4">
+      <div class="col-start-3 row-start-3 h-full w-full min-h-0 flex flex-col box-border px-6 gap-4">
         {/* Top 2/3 — Table or Result */}
         <div class="flex-[2] min-h-0 w-full flex flex-col justify-center items-center">
           <Show
