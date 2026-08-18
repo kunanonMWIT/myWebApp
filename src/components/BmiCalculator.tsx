@@ -1,7 +1,7 @@
 import { createSignal, Show, For, onMount, createEffect } from "solid-js";
 import * as d3 from "d3";
 import StudyTable from "./BMITable";
-import { Book, Hash, Clock, Calendar, Trash2, Eye, EyeOff, Plug, Unplug } from "lucide-solid";
+import { Book, Hash, Clock, Calendar, Trash2, Eye, EyeOff, Plug, Unplug, Share2, Check } from "lucide-solid";
 import DatePicker from "@rnwonder/solid-date-picker";
 import "@rnwonder/solid-date-picker/dist/style.css";
 import {
@@ -211,6 +211,7 @@ export default function BmiCalculator() {
   const [sb, setSb] = createSignal<SupabaseClient | null>(null);
   const [connStatus, setConnStatus] = createSignal<"idle" | "connecting" | "connected" | "error">("idle");
   const [connError, setConnError] = createSignal<string>("");
+  const [copied, setCopied] = createSignal<boolean>(false);
 
   const loadRecords = async (client: SupabaseClient) => {
     const records = await fetchRecords(client);
@@ -266,7 +267,32 @@ export default function BmiCalculator() {
     }
   };
 
+  const shareLink = () => {
+    const params = new URLSearchParams({
+      url: supabaseUrl(),
+      key: supabaseKey(),
+    });
+    const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    void navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   onMount(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const qUrl = params.get("url");
+      const qKey = params.get("key");
+      if (qUrl && qKey) {
+        setSupabaseUrl(qUrl);
+        setSupabaseKey(qKey);
+        void connect(qUrl, qKey);
+        return;
+      }
+    } catch (e) {
+      console.error("Failed to read URL params:", e);
+    }
     try {
       const saved = JSON.parse(localStorage.getItem(CREDS_KEY) || "null") as
         | { url?: string; key?: string }
@@ -418,6 +444,17 @@ export default function BmiCalculator() {
         </Show>
         <Show when={connStatus() === "connected"}>
           <span class="text-parchment text-xs font-bold">Connected</span>
+          <button
+            type="button"
+            onClick={shareLink}
+            class="flex items-center gap-1.5 bg-parchment text-kala-black border-none rounded-[8px] px-3 h-[36px] cursor-pointer font-bold text-xs transition-colors duration-200 hover:bg-iron-teal shrink-0"
+            title="Copy share link"
+          >
+            <Show when={copied()} fallback={<Share2 size={14} />}>
+              <Check size={14} />
+            </Show>
+            {copied() ? "Copied!" : "Share"}
+          </button>
         </Show>
         <Show when={connStatus() === "error"}>
           <span class="text-all-systems-red text-xs font-bold break-all">
